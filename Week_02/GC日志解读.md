@@ -104,7 +104,7 @@ DefNew: 69952K->8704K(78656K), 0.0204296 secs 中的 DefNew 表示 Serial 串行
 1. 堆内存分配的越大，GC 触发的次数越少，GC 单次使用的时间越多，生成的对象越多。
 2. 年轻代 GC 时，只回收年轻代内存；老年代 GC 时，只触发回收老年代内存。
 3. 分配内存比例：新生代中 eden:s1:s0 = 8:1:1， 新生代：老年代 = 1:2。总体如下图
-
+![内存](./内存分配.jpg)
 
 ## 并行 GC
 java -XX:+UseParallelGC -Xms256m -Xmx256m -Xloggc:gc.demo.log -XX:+PrintGCDetails -XX:+PrintGCDateStamps GCLogAnalysis
