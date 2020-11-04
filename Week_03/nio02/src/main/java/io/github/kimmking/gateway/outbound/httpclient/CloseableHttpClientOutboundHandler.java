@@ -12,15 +12,17 @@ import io.netty.handler.codec.http.FullHttpRequest;
 import io.netty.handler.codec.http.FullHttpResponse;
 import io.netty.handler.codec.http.HttpUtil;
 import java.io.IOException;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.util.Map.Entry;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.RejectedExecutionHandler;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.apache.http.Header;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.ClientProtocolException;
 import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpUriRequest;
-import org.apache.http.client.methods.RequestBuilder;
+import org.apache.http.client.methods.HttpGet;
 import org.apache.http.impl.client.CloseableHttpClient;
 import org.apache.http.impl.client.HttpClients;
 import org.apache.http.util.EntityUtils;
@@ -34,31 +36,40 @@ import org.apache.http.util.EntityUtils;
 public class CloseableHttpClientOutboundHandler {
 	private String backendUrl;
 	private CloseableHttpClient httpclient;
+	private ExecutorService proxyService;
 
 	public CloseableHttpClientOutboundHandler(String backendUrl){
 		this.backendUrl = backendUrl.endsWith("/")?backendUrl.substring(0,backendUrl.length()-1):backendUrl;
-		this.httpclient = HttpClients.custom().build();
+
+		int cores = Runtime.getRuntime().availableProcessors() * 2;
+		long keepAliveTime = 1000;
+		int queueSize = 2048;
+		RejectedExecutionHandler handler = new ThreadPoolExecutor.CallerRunsPolicy();
+		proxyService = new ThreadPoolExecutor(cores, cores,
+			keepAliveTime, TimeUnit.MILLISECONDS, new ArrayBlockingQueue<>(queueSize),
+			new HttpClientThreadFactory("proxyService"), handler);
+
+		this.httpclient = HttpClients.custom().setMaxConnTotal(40)
+			.setMaxConnPerRoute(8)
+			.setKeepAliveStrategy((response,context) -> 6000)
+			.build();
 	}
 
 	public void handle(final FullHttpRequest fullRequest, final ChannelHandlerContext ctx) {
 		final String url = this.backendUrl + fullRequest.uri();
-		fetchGet(fullRequest, ctx, url);
+		proxyService.submit(()->fetchGet(fullRequest, ctx, url));
 	}
 
 	private void fetchGet(final FullHttpRequest inbound, final ChannelHandlerContext ctx, final String url) {
 		try {
-			RequestBuilder requestBuilder = RequestBuilder.get();
+			final HttpGet httpGet = new HttpGet(url);
 			// add headers
 			for (Entry<String, String> entry : inbound.headers()) {
-				requestBuilder.addHeader(entry.getKey(), entry.getValue());
+				httpGet.addHeader(entry.getKey(), entry.getValue());
 			}
-			HttpUriRequest request = requestBuilder.setUri(new URI(url)).build();
-			CloseableHttpResponse response = httpclient.execute(request);
+			CloseableHttpResponse response = httpclient.execute(httpGet);
 			handleResponse(inbound, ctx, response);
-		} catch (URISyntaxException e) {
-			System.out.println("URISyntaxException: "+ e.getMessage());
-			e.printStackTrace();
-		} catch (ClientProtocolException e) {
+		}catch (ClientProtocolException e) {
 			System.out.println("ClientProtocolException: "+ e.getMessage());
 			e.printStackTrace();
 		} catch (IOException e) {
@@ -78,7 +89,6 @@ public class CloseableHttpClientOutboundHandler {
 		} catch (IOException e) {
 			System.out.println("IOException: "+ e.getMessage());
 			e.printStackTrace();
-
 			response = new DefaultFullHttpResponse(HTTP_1_1, NO_CONTENT);
 		}
 
