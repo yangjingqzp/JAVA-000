@@ -2,3 +2,5 @@
 .idea/
 Docs
 output
+target/
+*.log

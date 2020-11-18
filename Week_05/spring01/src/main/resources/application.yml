@@ -1,0 +1,10 @@
+server:
+  port: 8080
+
+klass:
+  age: 18
+  students:
+    - id: 1
+      name: geektime
+    - id: 2
+      name: chek
