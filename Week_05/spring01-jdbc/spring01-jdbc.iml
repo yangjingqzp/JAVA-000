@@ -18,6 +18,7 @@
     <orderEntry type="sourceFolder" forTests="false" />
     <orderEntry type="library" name="Maven: mysql:mysql-connector-java:5.1.36" level="project" />
     <orderEntry type="module" module-name="spring01-common" />
+    <orderEntry type="library" name="Maven: com.zaxxer:HikariCP:2.7.1" level="project" />
     <orderEntry type="library" name="Maven: com.google.guava:guava:29.0-jre" level="project" />
     <orderEntry type="library" name="Maven: com.google.guava:failureaccess:1.0.1" level="project" />
     <orderEntry type="library" name="Maven: com.google.guava:listenablefuture:9999.0-empty-to-avoid-conflict-with-guava" level="project" />
